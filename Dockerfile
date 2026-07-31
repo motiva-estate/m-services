@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Copy manifests first to leverage Docker layer caching
 COPY package*.json ./
-RUN npm ci --include=dev
+RUN npm ci --include=dev --legacy-peer-deps
 
 # Copy source and compile
 COPY . .
@@ -28,7 +28,7 @@ WORKDIR /app
 
 # Only production dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --legacy-peer-deps
 
 # Copy compiled output from builder
 COPY --from=builder /app/dist ./dist
