@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import {
@@ -147,7 +148,10 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "Missing or invalid refresh token" })
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const token = req.cookies?.["motiva_rt"];
-    if (!token) return res.status(401).json({ message: "No refresh token" });
+    // Throw instead of returning res.status().json() — returning the Express
+    // Response object with passthrough: true causes a circular-JSON error
+    // because NestJS tries to serialize the Response (which holds a Socket).
+    if (!token) throw new UnauthorizedException("No refresh token");
 
     const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
     const result = await this.auth.refreshTokens(payload.sub, token);
