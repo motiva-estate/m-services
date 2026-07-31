@@ -1,0 +1,71 @@
+# Render Blueprint — repo root
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy steps:
+#   1. Push this repo to GitHub / GitLab.
+#   2. Render dashboard → New → Blueprint → select the repo.
+#   3. Render reads this file and creates the web service automatically.
+#   4. In the service Environment tab, set every variable marked sync: false.
+#      These are secrets — they are intentionally left blank here.
+
+services:
+  - type: web
+    name: motiva-api
+    runtime: docker
+    # Dockerfile lives inside the motiva-backend sub-directory
+    dockerfilePath: ./motiva-backend/Dockerfile
+    dockerContext: ./motiva-backend
+    plan: free          # change to "standard" for always-on (no spin-down)
+    region: frankfurt   # pick the region closest to your users
+    branch: main        # branch to auto-deploy from
+    # Render routes traffic only after this returns HTTP 200
+    healthCheckPath: /api/health
+    envVars:
+      # ── Application ────────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+      # Render injects its own PORT automatically; this just sets the fallback.
+      - key: PORT
+        value: 4000
+
+      # ── CORS ───────────────────────────────────────────────────────────────
+      # Full URL of the deployed frontend — no trailing slash.
+      # Example: https://admin.motivaestate.com or your Lovable preview URL.
+      - key: FRONTEND_URL
+        sync: false
+
+      # ── MongoDB ─────────────────────────────────────────────────────────────
+      # Atlas connection string:
+      #   mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/motiva?retryWrites=true&w=majority
+      - key: MONGODB_URI
+        sync: false
+
+      # ── JWT secrets ─────────────────────────────────────────────────────────
+      # Generate with:
+      #   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+
+      # ── Cloudinary ──────────────────────────────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # ── Pusher ──────────────────────────────────────────────────────────────
+      - key: PUSHER_APP_ID
+        sync: false
+      - key: PUSHER_KEY
+        sync: false
+      - key: PUSHER_SECRET
+        sync: false
+      - key: PUSHER_CLUSTER
+        value: eu
