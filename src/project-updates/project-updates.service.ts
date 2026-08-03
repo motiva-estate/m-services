@@ -93,11 +93,17 @@ export class ProjectUpdatesService {
     caption: string | undefined,
     actorId: string,
     actorName: string,
+    mimetype?: string,
   ) {
     const update = await this.model.findById(updateId).exec();
     if (!update) throw new NotFoundException("Project update not found");
 
-    const result = await this.cloudinary.uploadBuffer(buffer, "update_photo", originalName);
+    const result = await this.cloudinary.uploadBuffer(
+      buffer,
+      "update_photo",
+      originalName,
+      mimetype,
+    );
 
     update.photos.push({
       cloudinaryPublicId: result.publicId,
@@ -127,13 +133,14 @@ export class ProjectUpdatesService {
   // Create update with photos in one call (text + photo buffers array)
   async createWithPhotos(
     dto: { projectRef: string; projectRefType: "project" | "land"; text: string },
-    photoFiles: { buffer: Buffer; originalName: string; caption?: string }[],
+    photoFiles: { buffer: Buffer; originalName: string; caption?: string; mimetype?: string }[],
     actorId: string,
     actorName: string,
   ) {
-    // Upload all photos concurrently
     const photoResults = await Promise.all(
-      photoFiles.map((f) => this.cloudinary.uploadBuffer(f.buffer, "update_photo", f.originalName)),
+      photoFiles.map((f) =>
+        this.cloudinary.uploadBuffer(f.buffer, "update_photo", f.originalName, f.mimetype),
+      ),
     );
 
     const update = await this.model.create({

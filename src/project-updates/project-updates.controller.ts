@@ -94,7 +94,11 @@ export class ProjectUpdatesController {
     if (photos?.length) {
       return this.svc.createWithPhotos(
         dto,
-        photos.map((f) => ({ buffer: f.buffer, originalName: f.originalname })),
+        photos.map((f) => ({
+          buffer: f.buffer,
+          originalName: f.originalname,
+          mimetype: f.mimetype,
+        })),
         actor.id,
         actor.fullName,
       );
@@ -120,7 +124,15 @@ export class ProjectUpdatesController {
     if (!photos?.length) throw new BadRequestException("No photos provided");
     return Promise.all(
       photos.map((f) =>
-        this.svc.uploadPhoto(id, f.buffer, f.originalname, caption, actor.id, actor.fullName),
+        this.svc.uploadPhoto(
+          id,
+          f.buffer,
+          f.originalname,
+          caption,
+          actor.id,
+          actor.fullName,
+          f.mimetype,
+        ),
       ),
     );
   }

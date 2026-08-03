@@ -61,12 +61,13 @@ export class DocumentsService {
     originalName: string,
     actorId: string,
     actorName: string,
+    mimetype?: string,
   ) {
     // Validate subscription exists
     const sub = await this.subModel.findById(subscriptionId).lean().exec();
     if (!sub) throw new NotFoundException("Subscription not found");
 
-    const result = await this.cloudinary.uploadBuffer(buffer, category, originalName);
+    const result = await this.cloudinary.uploadBuffer(buffer, category, originalName, mimetype);
 
     const doc = await this.model.create({
       subscriptionId,

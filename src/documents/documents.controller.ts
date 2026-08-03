@@ -98,6 +98,7 @@ export class DocumentsController {
       file.originalname,
       actor.id,
       actor.fullName,
+      file.mimetype,
     );
   }
 
