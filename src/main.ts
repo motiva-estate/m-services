@@ -37,9 +37,21 @@ async function bootstrap() {
   // ── CORS ───────────────────────────────────────────────────────────────────
   // FRONTEND_URL is a single origin in production (e.g. https://admin.motivaestate.com).
   // In development it falls back to localhost.
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  // const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: frontendUrl,
+    // origin: frontendUrl,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Not allowed by CORS: ${origin}`));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
