@@ -111,6 +111,7 @@ export class ClientsService {
     originalName: string,
     actorId: string,
     actorName: string,
+    mimetype?: string,
   ) {
     const client = await this.model.findById(clientId).lean().exec();
     if (!client) throw new NotFoundException("Client not found");
@@ -121,7 +122,12 @@ export class ClientsService {
       passportPhotoUrl: "kyc_photo",
     };
 
-    const result = await this.cloudinary.uploadBuffer(buffer, categoryMap[field], originalName);
+    const result = await this.cloudinary.uploadBuffer(
+      buffer,
+      categoryMap[field],
+      originalName,
+      mimetype,
+    );
 
     // Store the Cloudinary public_id as the URL field value
     const updated = await this.model

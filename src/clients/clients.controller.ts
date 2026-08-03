@@ -123,6 +123,7 @@ export class ClientsController {
       file.originalname,
       actor.id,
       actor.fullName,
+      file.mimetype,
     );
   }
 }
