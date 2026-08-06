@@ -57,14 +57,41 @@ const FOLDER_MAP: Record<UploadCategory, FolderSpec> = {
   other: { folder: "other", resourceType: "auto" },
 };
 
+// ── MIME type classification ──────────────────────────────────────────────────
+
+/** MIMEs that should be uploaded as resource_type 'raw' (documents, spreadsheets). */
+const RAW_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/csv",
+  "text/plain",
+  "application/rtf",
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/octet-stream",
+]);
+
+/** Returns true for MIMEs that Cloudinary should treat as raw files (not image/video). */
+function isRawMime(mime?: string): boolean {
+  if (!mime) return false;
+  return RAW_MIME_TYPES.has(mime.toLowerCase());
+}
+
 // ── MIME → Cloudinary format hint ────────────────────────────────────────────
-// Cloudinary uses short format strings, not full MIME types.
-// Passing the hint ensures the file is registered with the correct type
-// even when the browser sends a generic MIME like 'application/octet-stream'.
+// Only return a format hint for image and video types.
+// For document types (PDF, DOCX, CSV, etc.) we must NOT pass format — doing
+// so causes Cloudinary to incorrectly classify the file as an image variant
+// (e.g. image/pdf) rather than as a raw document.
 function mimeToFormat(mime?: string): string | undefined {
   if (!mime) return undefined;
+  if (isRawMime(mime)) return undefined; // never hint format for documents
+
   const map: Record<string, string> = {
-    "application/pdf": "pdf",
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
     "image/png": "png",
@@ -77,10 +104,6 @@ function mimeToFormat(mime?: string): string | undefined {
     "video/quicktime": "mov",
     "video/x-msvideo": "avi",
     "video/webm": "webm",
-    "application/msword": "doc",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-    "application/vnd.ms-excel": "xls",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
   };
   return map[mime.toLowerCase()];
 }
@@ -125,16 +148,22 @@ export class CloudinaryService {
     const folder = `${this.rootFolder}/${spec.folder}`;
     const formatHint = mimeToFormat(mimetype);
 
+    // For known document MIME types, always force resource_type to 'raw'
+    // regardless of what the FOLDER_MAP says. 'auto' with a document MIME can
+    // cause Cloudinary to misclassify the file as an image variant.
+    const resourceType: "image" | "video" | "raw" | "auto" =
+      mimetype && isRawMime(mimetype) ? "raw" : spec.resourceType;
+
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder,
-          resource_type: spec.resourceType,
+          resource_type: resourceType,
           use_filename: true,
           unique_filename: true,
           tags: ["motiva", category, this.env],
           context: originalName ? { original_name: originalName } : undefined,
-          // Only set format when we have a confirmed hint — don't guess.
+          // Only set format when we have a confirmed image/video hint.
           ...(formatHint ? { format: formatHint } : {}),
         },
         (err: UploadApiErrorResponse, result: UploadApiResponse) => {
@@ -191,9 +220,12 @@ export class CloudinaryService {
   async listFolder(category: UploadCategory, maxResults = 50) {
     const spec = FOLDER_MAP[category];
     const folder = `${this.rootFolder}/${spec.folder}`;
+    // Document categories are stored as 'raw'; image categories as 'image'.
+    const resourceType =
+      spec.resourceType === "image" ? "image" : spec.resourceType === "video" ? "video" : "raw";
     return cloudinary.api.resources({
       type: "upload",
-      resource_type: spec.resourceType === "auto" ? "image" : spec.resourceType,
+      resource_type: resourceType,
       prefix: folder,
       max_results: maxResults,
     });
