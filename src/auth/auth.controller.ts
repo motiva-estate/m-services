@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Patch,
   UnauthorizedException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import {
@@ -94,13 +95,44 @@ export class AuthController {
     const result = await this.auth.login(dto, req.ip);
     if ("requires2FA" in result) return result;
 
-    // Route to the correct cookie based on role.
+    // SUBSCRIBER accounts are never allowed into the admin panel.
+    // They must use the portal login (/portal/login → POST /api/auth/portal/login).
     if (result.user.role === SUBSCRIBER_ROLE) {
-      res.cookie("motiva_portal_rt", result.refreshToken, portalCookieOptions());
-    } else {
-      res.cookie("motiva_rt", result.refreshToken, adminCookieOptions());
+      // Invalidate the refresh token we just created so it can't be reused.
+      await this.auth.logout(result.user._id?.toString() ?? result.user.id);
+      throw new ForbiddenException(
+        "Subscriber accounts cannot access the admin panel. Please use the subscriber portal.",
+      );
     }
 
+    res.cookie("motiva_rt", result.refreshToken, adminCookieOptions());
+    return { user: result.user, accessToken: result.accessToken };
+  }
+
+  // ── Portal login (subscribers only) ──────────────────────────────────────
+  // POST /api/auth/portal/login
+  @Post("portal/login")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Sign in — subscriber portal only" })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 200, description: "Login successful" })
+  @ApiResponse({ status: 403, description: "Not a subscriber account" })
+  async portalLogin(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.login(dto as any, (req as any).ip);
+    if ("requires2FA" in result) return result;
+
+    if (result.user.role !== SUBSCRIBER_ROLE) {
+      await this.auth.logout(result.user._id?.toString() ?? result.user.id);
+      throw new ForbiddenException(
+        "This login is for subscriber accounts only. Admin staff must use the admin login.",
+      );
+    }
+
+    res.cookie("motiva_portal_rt", result.refreshToken, portalCookieOptions());
     return { user: result.user, accessToken: result.accessToken };
   }
 
