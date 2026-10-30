@@ -97,7 +97,11 @@ export class PdfGeneratorService {
    * Generate receipt PDF using PDFKit
    */
   async generateReceiptPDF(receipt: Receipt, client: Client): Promise<Buffer> {
-    return new Promise(async (resolve, reject) => {
+    // Generate QR code first (outside Promise)
+    const qrCode = await this.generateQRCode(receipt.receiptNumber);
+    const qrBuffer = Buffer.from(qrCode.split(',')[1], 'base64');
+
+    return new Promise((resolve, reject) => {
       try {
         const doc = new PDFDocument({
           size: 'A4',
@@ -108,10 +112,6 @@ export class PdfGeneratorService {
         doc.on('data', (chunk) => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
-
-        // Generate QR code
-        const qrCode = await this.generateQRCode(receipt.receiptNumber);
-        const qrBuffer = Buffer.from(qrCode.split(',')[1], 'base64');
 
         // Load logo
         const logoPath = path.join(__dirname, 'motiva-logo.png');
