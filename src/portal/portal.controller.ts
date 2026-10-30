@@ -28,7 +28,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 @Controller("portal")
 @UseGuards(JwtAuthGuard)
 export class PortalController {
-  constructor(private svc: PortalService) {}
+  constructor(private svc: PortalService) { }
 
   // ── Profile ───────────────────────────────────────────────────────────────
 
@@ -119,6 +119,39 @@ export class PortalController {
   getSubscription(@Param("id") id: string, @CurrentUser() user: any) {
     this.assertSubscriber(user);
     return this.svc.getSubscription(id, user.clientId);
+  }
+
+  // ── Receipts ──────────────────────────────────────────────────────────────
+
+  // GET /api/portal/receipts
+  @Get("receipts")
+  @ApiOperation({
+    summary: "List own receipts",
+    description: "Returns all receipts belonging to the authenticated subscriber.",
+  })
+  @ApiResponse({ status: 200, description: "Array of receipt records" })
+  @ApiResponse({ status: 400, description: "Not a subscriber account" })
+  @ApiResponse({ status: 401, description: "Not authenticated" })
+  listReceipts(@CurrentUser() user: any) {
+    this.assertSubscriber(user);
+    return this.svc.listReceipts(user.clientId);
+  }
+
+  // GET /api/portal/receipts/:id
+  @Get("receipts/:id")
+  @ApiOperation({
+    summary: "Get single receipt",
+    description:
+      "Returns a receipt by id. Throws 403 if the receipt does not belong to the authenticated subscriber.",
+  })
+  @ApiParam({ name: "id", description: "Receipt MongoDB _id" })
+  @ApiResponse({ status: 200, description: "Receipt record" })
+  @ApiResponse({ status: 400, description: "Not a subscriber account" })
+  @ApiResponse({ status: 403, description: "Receipt belongs to a different subscriber" })
+  @ApiResponse({ status: 404, description: "Receipt not found" })
+  getReceipt(@Param("id") id: string, @CurrentUser() user: any) {
+    this.assertSubscriber(user);
+    return this.svc.getReceipt(id, user.clientId);
   }
 
   // ── Guard helper ──────────────────────────────────────────────────────────

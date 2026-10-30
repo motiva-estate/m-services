@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Client, ClientDocument } from '../common/schemas/client.schema';
 import { Subscription, SubscriptionDocument } from '../common/schemas/subscription.schema';
+import { Receipt, ReceiptDocument } from '../common/schemas/receipt.schema';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PusherService } from '../pusher/pusher.service';
 
@@ -23,9 +24,10 @@ export class PortalService {
   constructor(
     @InjectModel(Client.name) private clientModel: Model<ClientDocument>,
     @InjectModel(Subscription.name) private subModel: Model<SubscriptionDocument>,
+    @InjectModel(Receipt.name) private receiptModel: Model<ReceiptDocument>,
     private audit: AuditLogService,
     private pusher: PusherService,
-  ) {}
+  ) { }
 
   // ── GET /api/portal/me ────────────────────────────────────────────────────
   async getProfile(clientId: string) {
@@ -91,5 +93,22 @@ export class PortalService {
     if (!sub) throw new NotFoundException('Subscription not found');
     if ((sub as any).clientId !== clientId) throw new ForbiddenException('Not your subscription');
     return sub;
+  }
+
+  // ── GET /api/portal/receipts ──────────────────────────────────────────────
+  async listReceipts(clientId: string) {
+    return this.receiptModel
+      .find({ clientId, status: 'ISSUED' }) // Only show issued receipts
+      .sort({ dateIssued: -1 })
+      .lean()
+      .exec();
+  }
+
+  // ── GET /api/portal/receipts/:id ──────────────────────────────────────────
+  async getReceipt(id: string, clientId: string) {
+    const receipt = await this.receiptModel.findById(id).lean().exec();
+    if (!receipt) throw new NotFoundException('Receipt not found');
+    if ((receipt as any).clientId !== clientId) throw new ForbiddenException('Not your receipt');
+    return receipt;
   }
 }
