@@ -113,7 +113,8 @@ export class Receipt {
 export const ReceiptSchema = SchemaFactory.createForClass(Receipt);
 
 // Indexes
-ReceiptSchema.index({ receiptNumber: 1 });
+// NOTE: receiptNumber is already indexed by `unique: true` on the @Prop above.
+// Declaring it again here triggers a Mongoose "Duplicate schema index" warning.
 ReceiptSchema.index({ clientId: 1 });
 ReceiptSchema.index({ dateIssued: -1 });
 ReceiptSchema.index({ status: 1 });

@@ -247,9 +247,12 @@ export class ReceiptsService {
   }
 
   /**
-   * Generate PDF for a receipt
+   * Build the PDF buffer in memory (no Cloudinary upload).
+   *
+   * Used by the download endpoint so that fetching a PDF never depends on a
+   * Cloudinary upload succeeding — a download should only read data and render.
    */
-  async generatePDF(id: string): Promise<{ url: string; buffer: Buffer }> {
+  async generatePDFBuffer(id: string): Promise<Buffer> {
     const receipt = await this.get(id);
     const client = await this.clientModel.findById(receipt.clientId).exec();
 
@@ -257,8 +260,18 @@ export class ReceiptsService {
       throw new NotFoundException(`Client for receipt not found`);
     }
 
-    // Generate PDF
-    const pdfBuffer = await this.pdfGenerator.generateReceiptPDF(receipt, client);
+    return this.pdfGenerator.generateReceiptPDF(receipt, client);
+  }
+
+  /**
+   * Generate PDF for a receipt and persist it to Cloudinary.
+   *
+   * Use this for the explicit "generate + store" action — not for downloads.
+   */
+  async generatePDF(id: string): Promise<{ url: string; buffer: Buffer }> {
+    // Reuse the buffer-only path so the two methods can never drift.
+    const pdfBuffer = await this.generatePDFBuffer(id);
+    const receipt = await this.get(id);
 
     // Upload to Cloudinary
     const uploadResult = await this.cloudinary.uploadBuffer(
