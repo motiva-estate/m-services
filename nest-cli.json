@@ -2,6 +2,16 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "assets": [
+      {
+        "include": "receipts/*.png",
+        "watchAssets": true
+      },
+      {
+        "include": "receipts/fonts/**/*",
+        "watchAssets": true
+      }
+    ]
   }
 }

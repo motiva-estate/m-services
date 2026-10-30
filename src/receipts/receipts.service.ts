@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Receipt, ReceiptDocument } from '../common/schemas/receipt.schema';
-import { Client, ClientDocument } from '../common/schemas/client.schema';
-import { CreateReceiptDto, UpdateReceiptDto } from './dto/create-receipt.dto';
-import { PdfGeneratorService } from './pdf-generator.service';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Receipt, ReceiptDocument } from "../common/schemas/receipt.schema";
+import { Client, ClientDocument } from "../common/schemas/client.schema";
+import { CreateReceiptDto, UpdateReceiptDto } from "./dto/create-receipt.dto";
+import { PdfGeneratorService } from "./pdf-generator.service";
+import { CloudinaryService } from "../cloudinary/cloudinary.service";
 
 @Injectable()
 export class ReceiptsService {
@@ -14,7 +14,7 @@ export class ReceiptsService {
     @InjectModel(Client.name) private clientModel: Model<ClientDocument>,
     private pdfGenerator: PdfGeneratorService,
     private cloudinary: CloudinaryService,
-  ) { }
+  ) {}
 
   /**
    * Generate receipt number in format MTV/YYYY/####
@@ -31,11 +31,11 @@ export class ReceiptsService {
 
     let nextNumber = 1;
     if (lastReceipt) {
-      const lastNumber = parseInt(lastReceipt.receiptNumber.split('/')[2], 10);
+      const lastNumber = parseInt(lastReceipt.receiptNumber.split("/")[2], 10);
       nextNumber = lastNumber + 1;
     }
 
-    return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+    return `${prefix}${nextNumber.toString().padStart(4, "0")}`;
   }
 
   /**
@@ -78,9 +78,17 @@ export class ReceiptsService {
       totalPaid,
       amountInWords,
       qrCodeData,
-      status: dto.status || 'DRAFT',
+      status: dto.status || "DRAFT",
       issuedByUserId: userId,
       issuedByUserName: userName,
+      // company / sign-off (optional)
+      ...(dto.companyAddress !== undefined && { companyAddress: dto.companyAddress }),
+      ...(dto.companyWebsite !== undefined && { companyWebsite: dto.companyWebsite }),
+      ...(dto.companyEmail !== undefined && { companyEmail: dto.companyEmail }),
+      ...(dto.companyPhone !== undefined && { companyPhone: dto.companyPhone }),
+      ...(dto.signatory !== undefined && { signatory: dto.signatory }),
+      ...(dto.signatureImage !== undefined && { signatureImage: dto.signatureImage }),
+      ...(dto.disclaimer !== undefined && { disclaimer: dto.disclaimer }),
     });
 
     return receipt.save();
@@ -109,7 +117,7 @@ export class ReceiptsService {
     }
 
     if (filters?.search) {
-      query.receiptNumber = new RegExp(filters.search, 'i');
+      query.receiptNumber = new RegExp(filters.search, "i");
     }
 
     const skip = (page - 1) * limit;
@@ -137,7 +145,7 @@ export class ReceiptsService {
    */
   async getByReceiptNumber(receiptNumber: string): Promise<Receipt> {
     // Handle URL-safe format (MTV-2026-0001)
-    const normalized = receiptNumber.replace(/-/g, '/');
+    const normalized = receiptNumber.replace(/-/g, "/");
     const receipt = await this.receiptModel.findOne({ receiptNumber: normalized }).exec();
     if (!receipt) {
       throw new NotFoundException(`Receipt ${receiptNumber} not found`);
@@ -182,6 +190,14 @@ export class ReceiptsService {
       receipt.amountInWords = this.pdfGenerator.getAmountInWords(dto.amountReceived);
     }
     if (dto.status) receipt.status = dto.status;
+    // company / sign-off — allow explicit empty string to clear a field
+    if (dto.companyAddress !== undefined) receipt.companyAddress = dto.companyAddress;
+    if (dto.companyWebsite !== undefined) receipt.companyWebsite = dto.companyWebsite;
+    if (dto.companyEmail !== undefined) receipt.companyEmail = dto.companyEmail;
+    if (dto.companyPhone !== undefined) receipt.companyPhone = dto.companyPhone;
+    if (dto.signatory !== undefined) receipt.signatory = dto.signatory;
+    if (dto.signatureImage !== undefined) receipt.signatureImage = dto.signatureImage;
+    if (dto.disclaimer !== undefined) receipt.disclaimer = dto.disclaimer;
 
     return receipt.save();
   }
@@ -205,25 +221,27 @@ export class ReceiptsService {
       throw new NotFoundException(`Receipt with ID ${id} not found`);
     }
 
-    if (receipt.status === 'VOIDED') {
-      throw new BadRequestException('Receipt is already voided');
+    if (receipt.status === "VOIDED") {
+      throw new BadRequestException("Receipt is already voided");
     }
 
-    if (receipt.status === 'DRAFT') {
-      throw new BadRequestException('Cannot void a draft receipt. Please delete it instead.');
+    if (receipt.status === "DRAFT") {
+      throw new BadRequestException("Cannot void a draft receipt. Please delete it instead.");
     }
 
-    const updated = await this.receiptModel.findByIdAndUpdate(
-      id,
-      {
-        status: 'VOIDED',
-        voidedAt: new Date(),
-        voidedByUserId: userId,
-        voidedByUserName: userName,
-        voidReason: reason,
-      },
-      { new: true }
-    ).exec();
+    const updated = await this.receiptModel
+      .findByIdAndUpdate(
+        id,
+        {
+          status: "VOIDED",
+          voidedAt: new Date(),
+          voidedByUserId: userId,
+          voidedByUserName: userName,
+          voidReason: reason,
+        },
+        { new: true },
+      )
+      .exec();
 
     return updated;
   }
@@ -245,17 +263,15 @@ export class ReceiptsService {
     // Upload to Cloudinary
     const uploadResult = await this.cloudinary.uploadBuffer(
       pdfBuffer,
-      'receipt',
-      `${receipt.receiptNumber.replace(/\//g, '-')}.pdf`,
-      'application/pdf',
+      "receipt",
+      `${receipt.receiptNumber.replace(/\//g, "-")}.pdf`,
+      "application/pdf",
     );
 
-    // Update receipt with PDF URL  
-    const updatedReceipt = await this.receiptModel.findByIdAndUpdate(
-      id,
-      { pdfUrl: uploadResult.secureUrl },
-      { new: true }
-    ).exec();
+    // Update receipt with PDF URL
+    const updatedReceipt = await this.receiptModel
+      .findByIdAndUpdate(id, { pdfUrl: uploadResult.secureUrl }, { new: true })
+      .exec();
 
     return {
       url: uploadResult.secureUrl,

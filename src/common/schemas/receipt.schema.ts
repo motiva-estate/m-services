@@ -1,9 +1,9 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
 
 export type ReceiptDocument = Receipt & Document;
 
-export type ReceiptStatus = 'DRAFT' | 'ISSUED' | 'VOIDED';
+export type ReceiptStatus = "DRAFT" | "ISSUED" | "VOIDED";
 
 @Schema({ _id: false })
 class PaymentEntry {
@@ -23,7 +23,7 @@ class PaymentEntry {
   amount: number;
 }
 
-@Schema({ timestamps: true, collection: 'receipts' })
+@Schema({ timestamps: true, collection: "receipts" })
 export class Receipt {
   @Prop({ required: true, unique: true })
   receiptNumber: string; // "MTV/2026/0001"
@@ -57,11 +57,40 @@ export class Receipt {
 
   @Prop({
     type: String,
-    enum: ['DRAFT', 'ISSUED', 'VOIDED'],
-    default: 'DRAFT',
+    enum: ["DRAFT", "ISSUED", "VOIDED"],
+    default: "DRAFT",
   })
   status: ReceiptStatus;
 
+  // ── Company / sign-off (optional, per-receipt overrides) ──────────────────
+  @Prop()
+  companyAddress?: string;
+
+  @Prop()
+  companyWebsite?: string;
+
+  @Prop()
+  companyEmail?: string;
+
+  @Prop()
+  companyPhone?: string;
+
+  /** Name printed on the signature line (default: "Finance Manager"). */
+  @Prop()
+  signatory?: string;
+
+  /**
+   * Base64 data URL of the uploaded signature / stamp image.
+   * Stored as a string; PDF generator decodes it directly.
+   */
+  @Prop()
+  signatureImage?: string;
+
+  /** Custom disclaimer text (overrides the hardcoded default). */
+  @Prop()
+  disclaimer?: string;
+
+  // ── Audit ──────────────────────────────────────────────────────────────────
   @Prop()
   issuedByUserId?: string;
 
