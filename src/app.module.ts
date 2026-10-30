@@ -17,6 +17,7 @@ import { CloudinaryModule } from "./cloudinary/cloudinary.module";
 import { PusherModule } from "./pusher/pusher.module";
 import { PortalModule } from "./portal/portal.module";
 import { UploadModule } from "./upload/upload.module";
+import { ReceiptsModule } from "./receipts/receipts.module";
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { UploadModule } from "./upload/upload.module";
     DashboardModule,
     PortalModule,
     UploadModule,
+    ReceiptsModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

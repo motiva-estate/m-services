@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Client, ClientSchema } from '../common/schemas/client.schema';
 import { Subscription, SubscriptionSchema } from '../common/schemas/subscription.schema';
+import { Receipt, ReceiptSchema } from '../common/schemas/receipt.schema';
 import { PortalService } from './portal.service';
 import { PortalController } from './portal.controller';
 import { AuditLogModule } from '../audit-log/audit-log.module';
@@ -11,10 +12,11 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
     MongooseModule.forFeature([
       { name: Client.name, schema: ClientSchema },
       { name: Subscription.name, schema: SubscriptionSchema },
+      { name: Receipt.name, schema: ReceiptSchema },
     ]),
     AuditLogModule,
   ],
   providers: [PortalService],
   controllers: [PortalController],
 })
-export class PortalModule {}
+export class PortalModule { }
