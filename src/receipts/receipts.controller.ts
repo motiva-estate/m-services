@@ -10,6 +10,9 @@ import {
   UseGuards,
   Res,
   StreamableFile,
+  Logger,
+  HttpException,
+  InternalServerErrorException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -30,6 +33,8 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 @ApiTags("Receipts")
 @Controller("receipts")
 export class ReceiptsController {
+  private readonly logger = new Logger(ReceiptsController.name);
+
   constructor(private svc: ReceiptsService) {}
 
   @Post()
@@ -189,14 +194,29 @@ export class ReceiptsController {
     // trigger a Cloudinary upload (that belongs to the generate-pdf endpoint).
     // Keeping the download path free of external network calls prevents 500s
     // when Cloudinary is unavailable or misconfigured.
-    const buffer = await this.svc.generatePDFBuffer(id);
-    const receipt = await this.svc.get(id);
+    try {
+      const buffer = await this.svc.generatePDFBuffer(id);
+      const receipt = await this.svc.get(id);
 
-    res.set({
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="Receipt-${receipt.receiptNumber.replace(/\//g, "-")}.pdf"`,
-    });
+      res.set({
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="Receipt-${receipt.receiptNumber.replace(/\//g, "-")}.pdf"`,
+      });
 
-    res.send(buffer);
+      res.send(buffer);
+    } catch (err) {
+      // Expected HTTP errors (e.g. receipt not found) — preserve their status
+      // code without logging, so a missing receipt stays a 404, not a 500.
+      if (err instanceof HttpException) throw err;
+
+      // Unexpected error — log the real cause so it isn't masked by a bare 500.
+      this.logger.error(
+        `Failed to generate/download PDF for receipt ${id}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      throw new InternalServerErrorException(
+        `Could not generate receipt PDF: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 }

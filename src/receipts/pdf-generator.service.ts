@@ -208,9 +208,16 @@ export class PdfGeneratorService {
           path.join(__dirname, "motiva-logo-light.png"),
           path.join(__dirname, "motiva-logo.png"),
         ];
+        // Logo image (when available) with the "Motiva" wordmark beside it in
+        // gold — mirrors the React preview, which renders the logo + "Motiva".
         const logoPath = logoCandidates.find((p) => fs.existsSync(p));
         if (logoPath) {
           doc.image(logoPath, X, 46, { fit: [48, 48] });
+          doc
+            .font(FONT_BOLD)
+            .fontSize(20)
+            .fillColor(C.gold)
+            .text("Motiva", X + 58, 60, { lineBreak: false });
         } else {
           doc
             .font(FONT_BOLD)
@@ -376,9 +383,45 @@ export class PdfGeneratorService {
           .fontSize(9)
           .fillColor(C.text)
           .text(receipt.amountInWords, X, y, { width: W });
+        // Advance past the (possibly wrapped) words so the closing block flows.
+        y = doc.y;
+
+        // Pre-compute disclaimer/footer copy and the disclaimer height so the
+        // closing section can be laid out flow-style and page-break safely.
+        const disclaimerText = receipt.disclaimer?.trim() || DEFAULT_DISCLAIMER;
+        const footerParts: string[] = ["Motiva"];
+        if (receipt.companyAddress?.trim()) footerParts.push(receipt.companyAddress.trim());
+        if (receipt.companyWebsite?.trim()) footerParts.push(receipt.companyWebsite.trim());
+        if (receipt.companyEmail?.trim()) footerParts.push(receipt.companyEmail.trim());
+        if (receipt.companyPhone?.trim()) footerParts.push(receipt.companyPhone.trim());
+        if (footerParts.length === 1) {
+          footerParts.push(
+            "123 Estate Avenue, Abuja, Nigeria",
+            "www.motivaestate.com",
+            "info@motivaestate.com",
+            "+234 800 123 4567",
+          );
+        }
+        const footerLine = footerParts.join("  |  ");
+
+        doc.font(FONT).fontSize(6.5);
+        const discTextHeight = doc.heightOfString(disclaimerText, { width: W, lineGap: 2 });
 
         // ── Thank you / signature / QR ─────────────────────────────────────
-        const blockY = Math.max(y + 60, 570);
+        // The block + disclaimer + footer must all fit on the current page.
+        // Previously discY/footY were hard-coded (683/750), so a long payment
+        // table pushed the thank-you/QR block down on top of them. Now they
+        // flow after the table, and the whole closing section moves to a fresh
+        // page when it would otherwise overflow.
+        const PAGE_BOTTOM = 800;
+        const BLOCK_TO_DISCLAIMER = 113; // preserves the original spacing for short receipts
+        // blockY → disclaimer line → disclaimer text → footer line → footer text
+        const closingHeight = BLOCK_TO_DISCLAIMER + 21 + discTextHeight + 18 + 20;
+        let blockY = Math.max(y + 60, 570);
+        if (blockY + closingHeight > PAGE_BOTTOM) {
+          doc.addPage();
+          blockY = 50;
+        }
 
         doc
           .font(FONT_BOLD)
@@ -425,8 +468,8 @@ export class PdfGeneratorService {
         });
 
         // ── Disclaimer ─────────────────────────────────────────────────────
-        const disclaimerText = receipt.disclaimer?.trim() || DEFAULT_DISCLAIMER;
-        const discY = 683;
+        // Flows directly under the thank-you/signature/QR block (no fixed y).
+        const discY = blockY + BLOCK_TO_DISCLAIMER;
         doc.moveTo(X, discY).lineTo(R, discY).lineWidth(1).strokeColor(C.gold).stroke();
         label("DISCLAIMER", X, discY + 9, C.navy, { fontSize: 6, characterSpacing: 2 });
         doc
@@ -436,22 +479,8 @@ export class PdfGeneratorService {
           .text(disclaimerText, X, discY + 21, { width: W, lineGap: 2 });
 
         // ── Footer ─────────────────────────────────────────────────────────
-        const footerParts: string[] = ["Motiva"];
-        if (receipt.companyAddress?.trim()) footerParts.push(receipt.companyAddress.trim());
-        if (receipt.companyWebsite?.trim()) footerParts.push(receipt.companyWebsite.trim());
-        if (receipt.companyEmail?.trim()) footerParts.push(receipt.companyEmail.trim());
-        if (receipt.companyPhone?.trim()) footerParts.push(receipt.companyPhone.trim());
-        if (footerParts.length === 1) {
-          footerParts.push(
-            "123 Estate Avenue, Abuja, Nigeria",
-            "www.motivaestate.com",
-            "info@motivaestate.com",
-            "+234 800 123 4567",
-          );
-        }
-        const footerLine = footerParts.join("  |  ");
-
-        const footY = 750;
+        // Flows directly under the disclaimer text (no fixed y).
+        const footY = discY + 21 + discTextHeight + 18;
         doc.moveTo(X, footY).lineTo(R, footY).lineWidth(1).strokeColor(C.gold).stroke();
         doc
           .font(FONT)
