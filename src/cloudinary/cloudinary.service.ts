@@ -166,10 +166,14 @@ export class CloudinaryService {
           // Only set format when we have a confirmed image/video hint.
           ...(formatHint ? { format: formatHint } : {}),
         },
-        (err: UploadApiErrorResponse, result: UploadApiResponse) => {
-          if (err) {
+        (err: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+          if (err || !result) {
             return reject(
-              new InternalServerErrorException(`Cloudinary upload error: ${err.message}`),
+              new InternalServerErrorException(
+                err
+                  ? `Cloudinary upload error: ${err.message}`
+                  : "Cloudinary upload failed with no response",
+              ),
             );
           }
           resolve({

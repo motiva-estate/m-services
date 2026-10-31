@@ -243,6 +243,10 @@ export class ReceiptsService {
       )
       .exec();
 
+    if (!updated) {
+      throw new NotFoundException(`Receipt with ID ${id} not found`);
+    }
+
     return updated;
   }
 
