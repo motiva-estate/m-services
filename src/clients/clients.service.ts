@@ -169,7 +169,10 @@ export class ClientsService {
         });
         created.push(client._id.toString());
       } catch (err) {
-        errors.push({ row: i + 1, error: err.message });
+        errors.push({
+          row: i + 1,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 

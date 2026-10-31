@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as Pusher from 'pusher';
+import * as Pusher from "pusher";
 
 // ─── Channel / event naming conventions ──────────────────────────────────────
 //
@@ -42,12 +42,12 @@ export class PusherService {
     const secret = config.get<string>("PUSHER_SECRET");
     const cluster = config.get<string>("PUSHER_CLUSTER", "eu");
 
-    this.enabled = !!(appId && key && secret);
-
-    if (this.enabled) {
+    if (appId && key && secret) {
+      this.enabled = true;
       this.pusher = new Pusher({ appId, key, secret, cluster, useTLS: true });
       this.logger.log(`Pusher connected (cluster: ${cluster})`);
     } else {
+      this.enabled = false;
       this.logger.warn("Pusher credentials not set — realtime events disabled");
     }
   }

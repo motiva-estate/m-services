@@ -3,7 +3,12 @@ import { ConfigService } from "@nestjs/config";
 import { Receipt } from "../common/schemas/receipt.schema";
 import { Client } from "../common/schemas/client.schema";
 import * as QRCode from "qrcode";
-import PDFDocument from "pdfkit";
+import * as PDFDocument from "pdfkit";
+// NOTE: namespace import on purpose. The project's tsconfig does not set
+// `esModuleInterop`, so a default import compiles to `pdfkit.default` — but
+// pdfkit is a CommonJS module that exports the constructor directly (no
+// `.default`), which made `new PDFDocument(...)` throw "not a constructor".
+// A namespace import compiles to `require("pdfkit")` used directly.
 import * as fs from "fs";
 import * as path from "path";
 
